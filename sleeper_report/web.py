@@ -72,8 +72,10 @@ class App:
         ts, cached = self._state
         if cached is not None and time.time() - ts < STATE_TTL:
             return cached
+        # The UI's status call must stay snappy: one bounded attempt, no backoff.
+        # A failure just leaves the week unknown until the next status refresh.
         try:
-            state = sleeper.nfl_state()
+            state = sleeper.nfl_state(timeout=5.0, max_retries=0)
         except HTTPError:
             return cached
         self._state = (time.time(), state)

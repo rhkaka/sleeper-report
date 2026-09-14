@@ -11,8 +11,9 @@ BASE = "https://api.sleeper.app/v1"
 SCHEDULE_BASE = "https://api.sleeper.app/schedule/nfl"
 
 
-def nfl_state() -> dict:
-    return get_json(f"{BASE}/state/nfl")
+def nfl_state(**kwargs: Any) -> dict:
+    """Extra kwargs (timeout, max_retries) are passed to the HTTP layer."""
+    return get_json(f"{BASE}/state/nfl", **kwargs)
 
 
 def user(username_or_id: str) -> dict | None:

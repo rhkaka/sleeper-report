@@ -1,0 +1,22 @@
+[project]
+name = "sleeper-report"
+version = "0.1.0"
+description = "Weekly fantasy football report generator for a Sleeper league"
+requires-python = ">=3.11"
+dependencies = ["httpx>=0.27"]
+
+[project.scripts]
+sleeper-report = "sleeper_report.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["sleeper_report"]
+
+
+[tool.uv]
+# With UV_NO_EDITABLE=1 the package is copied into .venv, so tell uv to rebuild
+# whenever any source or static file changes, not only pyproject.toml.
+cache-keys = [{ file = "pyproject.toml" }, { file = "sleeper_report/**/*" }]

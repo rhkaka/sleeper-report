@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+config.json
+players.json
+schedule-*.json
+report-week*.md

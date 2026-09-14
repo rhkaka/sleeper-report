@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sleeper Report</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2714%27 fill=%27%231f7a4d%27/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #ffffff; --ink: #16181d; --muted: #667085; --line: #e3e6eb;
+    --accent: #1f7a4d; --accent-ink: #ffffff; --accent-soft: #e6f4ec;
+    --warn: #b7791f; --warn-soft: #fff4dc; --bad: #c0392b; --bad-soft: #fde8e6;
+    --info-soft: #e8f0fe; --code: #f0f2f5; --shadow: 0 1px 2px rgba(16,24,40,.06);
+    --radius: 10px; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #171b21; --ink: #e8eaee; --muted: #98a2b3; --line: #2a303a;
+      --accent: #3ccf7f; --accent-ink: #06210f; --accent-soft: #10291b;
+      --warn: #f0b64a; --warn-soft: #33270f; --bad: #ff6b5c; --bad-soft: #3a1512;
+      --info-soft: #14213a; --code: #1f242c; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  a { color: var(--accent); }
+  button { font: inherit; cursor: pointer; white-space: nowrap; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--ink); padding: 7px 12px; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .55; cursor: default; }
+  input[type=text], input[type=number], select { font: inherit; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink); width: 100%; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .check { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 13px; margin: 6px 0; }
+  .check input { width: auto; }
+
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px 20px; background: var(--panel);
+    border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+  header .brand { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  header .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+  header .league { color: var(--muted); overflow-wrap: anywhere; }
+  #hdr-chips { flex-wrap: wrap; }
+  header .spacer { flex: 1; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px;
+    font-size: 12px; background: var(--code); color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
+  .chip.ok { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+  .chip.bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+  .chip button { padding: 0 4px; border: 0; background: transparent; color: inherit; font-size: 12px; text-decoration: underline; }
+
+  main { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; padding: 20px; max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 12px; } header { padding: 10px 12px; } }
+  .card { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+  .card > h2 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  aside { display: flex; flex-direction: column; gap: 16px; }
+  .field { margin-bottom: 10px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .hint { color: var(--muted); font-size: 12px; }
+
+  .log { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; background: var(--code); border-radius: 8px; padding: 10px;
+    max-height: 220px; overflow: auto; white-space: pre-wrap; margin-top: 10px; display: none; }
+  .log.show { display: block; }
+  .log .err { color: var(--bad); }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .reports { list-style: none; margin: 0; padding: 0; }
+  .reports li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+  .reports li:hover { background: var(--code); }
+  .reports li.active { background: var(--accent-soft); }
+  .reports li .wk { font-weight: 600; flex: 1; }
+  .reports li .when { color: var(--muted); font-size: 12px; }
+  .badge { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--code); color: var(--muted); }
+  .badge.recs { background: var(--accent-soft); color: var(--accent); }
+  .empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
+
+  .toolbar { margin-bottom: 12px; }
+  .toolbar h1 { font-size: 20px; margin: 0 0 8px; }
+  .toolbar .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .toolbar .meta { color: var(--muted); font-size: 12px; margin-top: 6px; word-break: break-all; }
+  nav.sections { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; position: sticky; top: 57px; z-index: 4;
+    background: var(--bg); padding: 6px 0; }
+  nav.sections a { text-decoration: none; font-size: 12px; padding: 4px 10px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  nav.sections a.recs { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+  .md h1 { display: none; }
+  .md h2 { font-size: 17px; margin: 28px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  .md h2:first-child { margin-top: 0; }
+  .md h3 { font-size: 14px; margin: 18px 0 8px; }
+  .md p { margin: 8px 0; }
+  .md ul, .md ol { padding-left: 22px; margin: 8px 0; }
+  .md li { margin: 3px 0; }
+  .md code { font-family: var(--mono); font-size: 12px; background: var(--code); padding: 1px 5px; border-radius: 4px; }
+  .md blockquote { margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--warn); background: var(--warn-soft); border-radius: 0 8px 8px 0; }
+  .md em { color: var(--muted); }
+  .md hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
+  .tablewrap { overflow-x: auto; margin: 10px 0; border: 1px solid var(--line); border-radius: 8px; }
+  .md table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  .md th, .md td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .md th { background: var(--code); font-weight: 600; font-size: 12px; color: var(--muted); position: sticky; top: 0; }
+  .md tr:last-child td { border-bottom: 0; }
+  .md tr.starter td { font-weight: 500; }
+  .md tr.bench td { color: var(--muted); }
+  .md tr.bench td:nth-child(2) { color: var(--ink); }
+  .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.ok { background: var(--accent-soft); color: var(--accent); }
+  .pill.bye { background: var(--info-soft); color: #3b5bdb; }
+  @media (prefers-color-scheme: dark) { .pill.bye { color: #8fb0ff; } }
+  .recs-wrap { margin-top: 28px; border: 1px solid var(--accent); border-radius: var(--radius); padding: 4px 18px 14px; background: var(--accent-soft); }
+  .recs-wrap .md h2 { border-color: var(--accent); }
+  .recs-wrap .md strong { color: var(--accent); }
+  .cta { margin-top: 28px; padding: 18px; border: 1px dashed var(--line); border-radius: var(--radius); text-align: center; color: var(--muted); }
+
+  /* setup wizard */
+  .wizard { max-width: 560px; margin: 40px auto; }
+  .wizard h1 { font-size: 22px; margin: 0 0 6px; }
+  .wizard p { color: var(--muted); margin: 0 0 18px; }
+  .leagues { list-style: none; padding: 0; margin: 12px 0; }
+  .leagues li { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; display: flex; gap: 10px; align-items: center; }
+  .leagues li:hover, .leagues li.sel { border-color: var(--accent); background: var(--accent-soft); }
+  .leagues li .name { font-weight: 600; flex: 1; }
+  .error { color: var(--bad); background: var(--bad-soft); padding: 8px 12px; border-radius: 8px; margin: 10px 0; font-size: 13px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg);
+    padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span>Sleeper Report</div>
+  <div class="league" id="hdr-league"></div>
+  <div class="spacer"></div>
+  <div id="hdr-chips" class="row"></div>
+</header>
+
+<main id="main">
+  <aside id="sidebar">
+    <div class="card">
+      <h2>Generate</h2>
+      <div class="field">
+        <label for="week">Week</label>
+        <input type="number" id="week" min="1" max="18" placeholder="current">
+        <div class="hint" id="week-hint"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="bundle-only"> Bundle only (skip Claude)</label>
+      <label class="check"><input type="checkbox" id="refresh"> Re-download player database</label>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="run">Generate report</button>
+      </div>
+      <div class="log" id="log"></div>
+    </div>
+    <div class="card">
+      <h2>Reports</h2>
+      <ul class="reports" id="reports"></ul>
+    </div>
+  </aside>
+  <section id="content"></section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const state = { status: null, week: null, job: null, poll: null };
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : undefined);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); }
+function esc(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function ago(ts) {
+  const m = Math.round((Date.now() / 1000 - ts) / 60);
+  if (m < 1) return 'just now'; if (m < 60) return m + ' min ago';
+  const h = Math.round(m / 60); if (h < 48) return h + ' h ago';
+  return Math.round(h / 24) + ' d ago';
+}
+
+// ---------------------------------------------------------------- status / header
+async function refreshStatus(openLatest) {
+  state.status = await api('/api/status');
+  renderHeader(); renderReports();
+  const s = state.status;
+  if (!s.config) { showSetup(); return; }
+  if (s.current_job && !state.job) watchJob(s.current_job.id);
+  if (openLatest || state.week === null) {
+    if (s.reports.length) openReport(s.reports[0].week);
+    else renderContent(`<div class="cta">No reports yet. Pick a week on the left and click <strong>Generate report</strong>.</div>`);
+  }
+}
+function renderHeader() {
+  const s = state.status, cfg = s.config;
+  $('#hdr-league').textContent = cfg ? `${cfg.league_name || cfg.league_id} · ${cfg.season}` + (s.current_week ? ` · week ${s.current_week}` : '') : 'not configured';
+  const chips = [];
+  chips.push(cfg ? `<span class="chip ok">✓ ${esc(cfg.username)} <button id="resetup" title="Re-run setup">change</button></span>` : `<span class="chip warn"><button id="resetup">setup needed →</button></span>`);
+  chips.push(s.api_key_set ? `<span class="chip ok">✓ API key</span>` : `<span class="chip warn" title="Set ANTHROPIC_API_KEY before starting the server">no API key</span>`);
+  const pc = s.players_cache;
+  chips.push(pc.exists ? `<span class="chip ${pc.stale ? 'warn' : ''}" title="players.json age">players ${pc.age_hours}h old</span>` : `<span class="chip warn">no player cache</span>`);
+  $('#hdr-chips').innerHTML = chips.join('');
+  const b = $('#resetup'); if (b) b.onclick = showSetup;
+  $('#week').placeholder = s.current_week ? `current (${s.current_week})` : 'current';
+  $('#week-hint').textContent = s.current_week ? `Leave blank for the current week (${s.current_week}).` : '';
+  if (!s.api_key_set) { $('#bundle-only').checked = true; }
+  $('#run').disabled = !cfg || !!(s.current_job);
+}
+function renderReports() {
+  const list = state.status.reports;
+  if (!list.length) { $('#reports').innerHTML = '<li class="empty">none yet</li>'; return; }
+  $('#reports').innerHTML = list.map(r => `
+    <li data-week="${r.week}" class="${r.week === state.week ? 'active' : ''}">
+      <span class="wk">Week ${r.week}</span>
+      <span class="badge ${r.has_recommendations ? 'recs' : ''}">${r.has_recommendations ? 'recs' : 'bundle'}</span>
+      <span class="when">${ago(r.modified)}</span>
+    </li>`).join('');
+  document.querySelectorAll('#reports li[data-week]').forEach(li => li.onclick = () => openReport(+li.dataset.week));
+}
+function renderContent(html) { $('#content').innerHTML = html; }
+
+// ---------------------------------------------------------------- jobs
+function log(line, isErr) {
+  const el = $('#log'); el.classList.add('show');
+  const div = document.createElement('div'); if (isErr) div.className = 'err'; div.textContent = line; el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+async function startReport() {
+  const week = $('#week').value ? +$('#week').value : null;
+  try {
+    const job = await api('/api/report', { week, bundle_only: $('#bundle-only').checked, refresh_players: $('#refresh').checked });
+    $('#log').innerHTML = ''; log(`▶ ${job.label}`);
+    watchJob(job.id);
+  } catch (e) { log(e.message, true); }
+}
+async function startRecommend(week) {
+  try {
+    const job = await api('/api/recommend', { week });
+    $('#log').innerHTML = ''; log(`▶ ${job.label}`);
+    watchJob(job.id);
+  } catch (e) { log(e.message, true); toast(e.message); }
+}
+function watchJob(id) {
+  state.job = id; $('#run').disabled = true; $('#run').innerHTML = '<span class="spinner"></span>Working…';
+  let seen = 0;
+  clearInterval(state.poll);
+  state.poll = setInterval(async () => {
+    let job; try { job = await api('/api/jobs/' + id); } catch (e) { return; }
+    for (; seen < job.log.length; seen++) log(job.log[seen]);
+    if (job.status === 'running') return;
+    clearInterval(state.poll); state.job = null;
+    $('#run').disabled = false; $('#run').textContent = 'Generate report';
+    if (job.status === 'error') { log('✗ ' + job.error, true); toast('Failed: ' + job.error.slice(0, 80)); }
+    else log('✓ done');
+    const wk = (job.result && job.result.week) || (job.error && /week (\d+)/.exec(job.error) || [])[1];
+    state.status = await api('/api/status'); renderHeader(); renderReports();
+    if (wk) openReport(+wk); else if (job.status !== 'error') refreshStatus(true);
+  }, 1000);
+}
+
+// ---------------------------------------------------------------- report view
+async function openReport(week) {
+  let rep; try { rep = await api('/api/reports/' + week); } catch (e) { toast(e.message); return; }
+  state.week = week; renderReports();
+  const [bundle, recs] = rep.markdown.split(/^## Recommendations\s*$/m);
+  const title = (/^#\s+(.*)$/m.exec(bundle) || [, `Week ${week}`])[1];
+  const html = `
+    <div class="card">
+      <div class="toolbar">
+        <h1>${esc(title)}</h1>
+        <div class="actions">
+        ${recs === undefined ? `<button class="primary" id="btn-recs" ${state.status.api_key_set ? '' : 'disabled title="ANTHROPIC_API_KEY not set"'}>Get recommendations</button>`
+                             : `<button id="btn-recs" title="Re-run the analysis">Regenerate recommendations</button>`}
+        <button id="btn-copy">Copy markdown</button>
+        <a href="/api/reports/${week}/raw" download="report-week${week}.md"><button>Download</button></a>
+        </div>
+        <div class="meta">Updated ${ago(rep.modified)} · ${esc(rep.path)}</div>
+      </div>
+      <nav class="sections" id="secnav"></nav>
+      <div class="md" id="md-bundle">${renderMarkdown(bundle)}</div>
+      ${recs !== undefined
+        ? `<div class="recs-wrap"><div class="md" id="md-recs"><h2 id="sec-recommendations">Recommendations</h2>${renderMarkdown(recs)}</div></div>`
+        : `<div class="cta">No recommendations yet for this week.${state.status.api_key_set ? ' Click <strong>Get recommendations</strong> to send this bundle to Claude.' : ' Start the server with ANTHROPIC_API_KEY set to enable the analysis step.'}</div>`}
+    </div>`;
+  renderContent(html);
+  decorateTables();
+  const nav = $('#secnav');
+  document.querySelectorAll('#content .md h2').forEach(h => {
+    const a = document.createElement('a'); a.href = '#' + h.id; a.textContent = h.textContent.replace(/^\d+\.\s*/, '');
+    if (h.id === 'sec-recommendations') a.className = 'recs';
+    a.onclick = ev => { ev.preventDefault(); h.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    nav.appendChild(a);
+  });
+  $('#btn-recs').onclick = () => startRecommend(week);
+  $('#btn-copy').onclick = async () => { await navigator.clipboard.writeText(rep.markdown); toast('Markdown copied'); };
+}
+
+// Minimal markdown renderer covering what the bundle and Claude's answer use:
+// headings, tables, bullet/numbered lists, blockquotes, hr, paragraphs, bold/italic/code.
+function inline(s) {
+  s = esc(s);
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/(^|[\s(])\*([^*\s][^*]*?)\*(?=[\s).,;:!?]|$)/g, '$1<em>$2</em>');
+  s = s.replace(/(^|[\s(])_([^_\s][^_]*?)_(?=[\s).,;:!?]|$)/g, '$1<em>$2</em>');
+  s = s.replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return s;
+}
+function slug(s) { return 'sec-' + s.toLowerCase().replace(/^\d+\.\s*/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+function renderMarkdown(md) {
+  const lines = md.replace(/\r/g, '').split('\n'); const out = []; let i = 0;
+  const isBlock = l => /^(#{1,6}\s|\s*[-*]\s|\s*\d+[.)]\s|>|\||---)/.test(l);
+  while (i < lines.length) {
+    const line = lines[i];
+    let m;
+    if (!line.trim()) { i++; continue; }
+    if ((m = /^(#{1,6})\s+(.*)$/.exec(line))) { const lvl = m[1].length; out.push(`<h${lvl} id="${slug(m[2])}">${inline(m[2])}</h${lvl}>`); i++; continue; }
+    if (/^---+\s*$/.test(line)) { out.push('<hr>'); i++; continue; }
+    if (line.trim().startsWith('|')) {
+      const rows = []; while (i < lines.length && lines[i].trim().startsWith('|')) rows.push(lines[i++]);
+      const cells = r => r.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+      const body = rows.filter(r => !/^\|?[\s:|-]+\|?$/.test(r.trim()));
+      if (!body.length) continue;
+      const head = cells(body[0]);
+      let t = '<div class="tablewrap"><table><thead><tr>' + head.map(c => `<th>${inline(c)}</th>`).join('') + '</tr></thead><tbody>';
+      for (const r of body.slice(1)) t += '<tr>' + cells(r).map(c => `<td>${inline(c)}</td>`).join('') + '</tr>';
+      out.push(t + '</tbody></table></div>'); continue;
+    }
+    if (/^\s*[-*]\s+/.test(line) || /^\s*\d+[.)]\s+/.test(line)) {
+      const ordered = /^\s*\d+[.)]\s+/.test(line); const items = [];
+      const re = ordered ? /^\s*\d+[.)]\s+(.*)$/ : /^\s*[-*]\s+(.*)$/;
+      while (i < lines.length && (m = re.exec(lines[i]))) {
+        let item = m[1]; i++;
+        while (i < lines.length && lines[i].trim() && !isBlock(lines[i])) item += ' ' + lines[i++].trim();  // lazy continuation
+        items.push(item);
+      }
+      out.push(`<${ordered ? 'ol' : 'ul'}>` + items.map(x => `<li>${inline(x)}</li>`).join('') + `</${ordered ? 'ol' : 'ul'}>`); continue;
+    }
+    if (line.startsWith('>')) {
+      const q = []; while (i < lines.length && lines[i].startsWith('>')) q.push(lines[i++].replace(/^>\s?/, ''));
+      out.push('<blockquote>' + inline(q.join(' ')) + '</blockquote>'); continue;
+    }
+    const p = []; while (i < lines.length && lines[i].trim() && !isBlock(lines[i])) p.push(lines[i++].trim());
+    out.push('<p>' + inline(p.join(' ')) + '</p>');
+  }
+  return out.join('\n');
+}
+// Colour injury designations, bye flags, and starter/bench rows in roster tables.
+function decorateTables() {
+  document.querySelectorAll('#content table').forEach(table => {
+    const heads = [...table.querySelectorAll('th')].map(th => th.textContent.trim().toLowerCase());
+    const col = name => heads.indexOf(name);
+    const iInj = col('injury'), iBye = col('bye'), iStart = col('starting'), iPractice = col('practice');
+    table.querySelectorAll('tbody tr').forEach(tr => {
+      const tds = tr.children;
+      if (iInj >= 0 && tds[iInj]) {
+        const t = tds[iInj].textContent.trim();
+        if (/^(out|ir|pup|sus|dnr|doubtful|cov|na)\b/i.test(t)) tds[iInj].innerHTML = `<span class="pill bad">${esc(t)}</span>`;
+        else if (/^questionable/i.test(t)) tds[iInj].innerHTML = `<span class="pill warn">${esc(t)}</span>`;
+      }
+      if (iPractice >= 0 && tds[iPractice] && /^(limited|dnp|out)/i.test(tds[iPractice].textContent.trim()))
+        tds[iPractice].innerHTML = `<span class="pill warn">${esc(tds[iPractice].textContent.trim())}</span>`;
+      if (iBye >= 0 && tds[iBye] && /bye/i.test(tds[iBye].textContent)) tds[iBye].innerHTML = '<span class="pill bye">BYE</span>';
+      if (iStart >= 0 && tds[iStart]) {
+        const v = tds[iStart].textContent.trim();
+        tr.classList.add(v === 'yes' ? 'starter' : 'bench');
+        if (v === 'yes') tds[iStart].innerHTML = '<span class="pill ok">starter</span>';
+        else if (v === 'no') tds[iStart].textContent = 'bench';
+      }
+    });
+  });
+}
+
+// ---------------------------------------------------------------- setup wizard
+let wiz = { info: null, league: null };
+function showSetup() {
+  wiz = { info: null, league: null };
+  const cfg = state.status && state.status.config;
+  renderContent(`
+    <div class="card wizard">
+      <h1>Connect your Sleeper league</h1>
+      <p>Enter your Sleeper username. We'll find your leagues for the current season and the roster you own, and save the ids to <code>${esc(state.status.config_path)}</code>. Nothing else is stored.</p>
+      <div class="field"><label for="su-name">Sleeper username</label>
+        <div class="row"><input type="text" id="su-name" value="${cfg ? esc(cfg.username) : ''}" autocomplete="off" spellcheck="false">
+        <button class="primary" id="su-lookup">Find leagues</button></div></div>
+      <div id="su-out"></div>
+      ${cfg ? '<p style="margin-top:14px"><a href="#" id="su-cancel">Cancel, keep current setup</a></p>' : ''}
+    </div>`);
+  $('#su-lookup').onclick = lookup;
+  $('#su-name').onkeydown = e => { if (e.key === 'Enter') lookup(); };
+  $('#su-name').focus();
+  const c = $('#su-cancel'); if (c) c.onclick = e => { e.preventDefault(); refreshStatus(true); };
+}
+async function lookup() {
+  const out = $('#su-out'); const btn = $('#su-lookup');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Looking up…'; out.innerHTML = '';
+  try {
+    wiz.info = await api('/api/setup/lookup', { username: $('#su-name').value.trim() });
+    const u = wiz.info.user, st = wiz.info.state;
+    out.innerHTML = `
+      <p>Found <strong>${esc(u.display_name)}</strong> (user id ${esc(u.user_id)}). Sleeper says season ${esc(String(st.season))}, week ${esc(String(st.week))}.</p>
+      <label>${wiz.info.leagues.length === 1 ? 'Your league' : 'Pick a league'}</label>
+      <ul class="leagues">${wiz.info.leagues.map((l, i) => `
+        <li data-i="${i}" class="${wiz.info.leagues.length === 1 ? 'sel' : ''}"><span class="name">${esc(l.name || l.league_id)}</span>
+        <span class="badge">${l.total_rosters} teams</span><span class="badge">${esc(l.status || '')}</span></li>`).join('')}</ul>
+      <button class="primary" id="su-finish" ${wiz.info.leagues.length === 1 ? '' : 'disabled'}>Save configuration</button>`;
+    if (wiz.info.leagues.length === 1) wiz.league = wiz.info.leagues[0];
+    out.querySelectorAll('.leagues li').forEach(li => li.onclick = () => {
+      out.querySelectorAll('.leagues li').forEach(x => x.classList.remove('sel')); li.classList.add('sel');
+      wiz.league = wiz.info.leagues[+li.dataset.i]; $('#su-finish').disabled = false;
+    });
+    $('#su-finish').onclick = finish;
+  } catch (e) { out.innerHTML = `<div class="error">${esc(e.message)}</div>`; }
+  btn.disabled = false; btn.textContent = 'Find leagues';
+}
+async function finish() {
+  const btn = $('#su-finish'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Saving…';
+  try {
+    const u = wiz.info.user;
+    await api('/api/setup/finish', { user_id: u.user_id, username: u.username, league_id: wiz.league.league_id, season: wiz.info.season });
+    toast('Configuration saved'); state.week = null; await refreshStatus(true);
+  } catch (e) { $('#su-out').insertAdjacentHTML('beforeend', `<div class="error">${esc(e.message)}</div>`); btn.disabled = false; btn.textContent = 'Save configuration'; }
+}
+
+$('#run').onclick = startReport;
+refreshStatus(true).catch(e => renderContent(`<div class="error">${esc(e.message)}</div>`));
+</script>
+</body>
+</html>

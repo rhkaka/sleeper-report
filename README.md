@@ -34,7 +34,23 @@ For the recommendations step, export your Anthropic key:
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-## Web UI
+## Hosted version (GitHub Pages)
+
+**https://rhkaka.github.io/sleeper-report/** — no install, runs entirely in
+your browser. The `docs/` folder is a JavaScript port of the same report
+builder (`docs/report.js` is checked against `bundle.py` by `make test`):
+
+- Sleeper's API allows cross-origin reads, so the page fetches your league
+  directly. The player database is cached in IndexedDB for 24 hours.
+- Your league config and generated reports are saved in that browser's
+  localStorage. Nothing is uploaded anywhere.
+- For the Claude step, paste an Anthropic API key under **Settings**. It is
+  stored only in that browser and sent only to api.anthropic.com. Leave it
+  blank for bundle-only mode. Don't do this on a shared computer.
+
+`make pages` serves the same files locally on port 8790.
+
+## Local web UI
 
 ```bash
 make ui                  # http://127.0.0.1:8765, opens in your browser

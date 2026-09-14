@@ -36,3 +36,8 @@ ui-lan:
 test:
 	$(UV) run python tests/test_bundle.py > /dev/null
 	$(UV) run python tests/test_web.py
+	bash tests/test_pages_parity.sh
+
+# Serve the GitHub Pages version locally.
+pages:
+	python3 -m http.server 8790 --directory docs
